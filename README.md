@@ -100,3 +100,4 @@ TODO
   audit.
 * Allow for an identical API for spawning children in other processes.
 * Support for other R7RS schemes with reasonable FFIs.
+* More convenient API naming (consider using function names like Clojure's `core.async`).
