@@ -69,8 +69,8 @@ From within a Chibi Scheme VM:
       ;; in nanoseconds.
       (csp-sleep 1)
 
-      (println "Popping first item... " (csp-cahnnel-pop-non-block me))
-      (println "Popping second item... " (csp-cahnnel-pop-non-block me)))))
+      (println "Popping first item... " (csp-channel-pop-non-block me))
+      (println "Popping second item... " (csp-channel-pop-non-block me)))))
 
 ;; From the parent, you can access its channel.
 (define me (car channels))
