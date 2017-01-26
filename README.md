@@ -99,3 +99,4 @@ TODO
 * I was pretty thorough with memory management and mutexes, but it needs another
   audit.
 * Allow for an identical API for spawning children in other processes.
+* Support for other R7RS schemes with reasonable FFIs.
