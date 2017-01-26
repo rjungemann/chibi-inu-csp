@@ -4,7 +4,7 @@
 ;; \procedure{(csp-spawn)}
 ;;
 ;; Lorem ipsum...
-(define-c sexp (csp-spawn "csp_spawn")
+(define-c sexp (csp-spawn-original "csp_spawn")
   ((value ctx sexp) (value self sexp) sexp))
 
 ;; \procedure{(csp-reclaim)}

@@ -5,12 +5,12 @@ task :fetch do
 end
 
 desc 'Try building the stub file for debugging purposes.'
-task :build_c do
+task :build_c => [:clean] do
   sh 'chibi-ffi chibi/inu/csp.stub'
 end
 
 desc 'Try building the shared file file for debugging purposes.'
-task :build_shared => [:build_c] do
+task :build_shared => [:clean, :build_c] do
   sh 'cc -fPIC -dynamiclib chibi/inu/csp.c -lchibi-scheme -o chibi/inu/csp.dylib'
 end
 
@@ -30,7 +30,7 @@ task :remove do
 end
 
 desc 'Build the installed packages.'
-task :build => [:clean] do
+task :install => [:clean] do
   sh 'snow-chibi --always-no package chibi/inu/csp.sld'
   sh 'snow-chibi --always-no install chibi-inu-csp.tgz'
   sh 'snow-chibi --always-no package chibi/inu/csp-test.sld'

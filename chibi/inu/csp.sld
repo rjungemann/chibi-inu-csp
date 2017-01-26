@@ -2,7 +2,8 @@
   (import (chibi))
   (include-shared "csp")
   (include "csp-native.scm")
-  (export csp-spawn
+  (export csp-lambda
+          csp-spawn
           csp-reclaim
           csp-channel-push
           csp-channel-pop-non-block

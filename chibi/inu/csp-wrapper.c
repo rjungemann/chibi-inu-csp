@@ -26,7 +26,7 @@ typedef struct spawn_element {
 
 typedef struct spawn_datum {
   int id;
-  sexp callback;
+  char *callback_string;
   sexp parent_data;
   spawn_element *queue;
   sexp ctx;
@@ -34,7 +34,7 @@ typedef struct spawn_datum {
   pthread_mutex_t *mutex;
 } spawn_datum;
 
-sexp csp_spawn (sexp ctx, sexp self, sexp callback);
+sexp csp_spawn (sexp ctx, sexp self, sexp callback_string);
 sexp csp_reclaim (sexp ctx, sexp self, sexp boxed_id);
 sexp csp_channel_push (sexp ctx, sexp self, sexp boxed_id, sexp value);
 sexp csp_channel_pop_non_block (sexp ctx, sexp self, sexp boxed_id);
@@ -44,27 +44,36 @@ void *spawn (void *param) {
   spawn_datum *data = (spawn_datum *)param;
 
   sexp ctx = sexp_make_eval_context(NULL, NULL, NULL, 0, 0);
+  sexp_load_standard_env(ctx, NULL, SEXP_SEVEN);
   sexp_load_standard_ports(ctx, NULL, stdin, stdout, stderr, 0);
 
   // TODO: Find a workaround for this.
-  sexp_eval_string(ctx, "(import (scheme small))", -1, NULL);
+  sexp_eval_string(ctx, "(import (chibi))", -1, NULL);
+  sexp_eval_string(ctx, "(import (chibi inu csp))", -1, NULL);
+
+  sexp callback = sexp_eval_string(ctx, data->callback_string, -1, NULL);
 
   sexp boxed_id = sexp_make_cpointer(ctx, SEXP_CPOINTER, data, SEXP_FALSE, 0);
-  sexp_env_define(ctx, sexp_context_env(ctx), sexp_intern(ctx, "thread-id", 9), boxed_id);
+  sexp_env_define(ctx, sexp_context_env(ctx), sexp_intern(ctx, "current-channel", 9), boxed_id);
 
   sexp boxed_parent_id = sexp_make_cpointer(ctx, SEXP_CPOINTER, data->parent_data, SEXP_FALSE, 0);
 
-  sexp_apply(ctx, data->callback, sexp_list2(ctx, boxed_parent_id, boxed_id));
+  // TODO: Better error handling in children. Bubble error up to parent?
+  sexp result = sexp_apply(ctx, callback, sexp_list2(ctx, boxed_parent_id, boxed_id));
+  if (sexp_exceptionp(result)) {
+    printf("An error occurred:");
+    sexp_print_exception(ctx, result, sexp_current_output_port(ctx));
+  }
 
   data->ctx = ctx;
 
   return NULL;
 }
 
-sexp csp_spawn (sexp ctx, sexp self, sexp callback) {
+sexp csp_spawn (sexp ctx, sexp self, sexp callback_string) {
   assert(pthread_mutex_lock(&spawn_mutex) == 0);
 
-  sexp maybe_boxed_id = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "thread-id", 9), SEXP_NULL);
+  sexp maybe_boxed_id = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "current-channel", 9), SEXP_NULL);
   sexp equal_function = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "equal?", 6), SEXP_NULL);
   sexp value = sexp_apply(ctx, equal_function, sexp_list2(ctx, maybe_boxed_id, SEXP_NULL));
   bool has_no_thread_id = sexp_unbox_boolean(value);
@@ -75,7 +84,7 @@ sexp csp_spawn (sexp ctx, sexp self, sexp callback) {
     int id = autoincrementing_id();
     sexp boxed_id = sexp_make_cpointer(ctx, SEXP_CPOINTER, data, SEXP_FALSE, 0);
     data->id = id;
-    data->callback = NULL;
+    data->callback_string = NULL;
     data->parent_data = NULL;
     data->queue = NULL;
 
@@ -85,9 +94,9 @@ sexp csp_spawn (sexp ctx, sexp self, sexp callback) {
     data->mutex = mutex;
 
     // TODO: Find a workaround for this.
-    sexp_eval_string(ctx, "(import (scheme small))", -1, NULL);
+    sexp_eval_string(ctx, "(import (chibi))", -1, NULL);
 
-    sexp_env_define(ctx, sexp_context_env(ctx), sexp_intern(ctx, "thread-id", 9), boxed_id);
+    sexp_env_define(ctx, sexp_context_env(ctx), sexp_intern(ctx, "current-channel", 9), boxed_id);
   }
 
   assert(pthread_mutex_unlock(&spawn_mutex) == 0);
@@ -95,13 +104,12 @@ sexp csp_spawn (sexp ctx, sexp self, sexp callback) {
   pthread_t *thread = malloc(sizeof(pthread_t));
   pthread_mutex_t *mutex = malloc(sizeof(pthread_mutex_t));
   spawn_datum *data = malloc(sizeof(spawn_datum));
-  sexp_preserve_object(ctx, callback);
   int id = autoincrementing_id();
   sexp boxed_id = sexp_make_cpointer(ctx, SEXP_CPOINTER, data, SEXP_FALSE, 0);
   data->id = id;
-  data->callback = callback;
+  data->callback_string = sexp_string_data(callback_string);
 
-  sexp parent_boxed_id = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "thread-id", 9), SEXP_NULL);
+  sexp parent_boxed_id = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "current-channel", 9), SEXP_NULL);
   data->parent_data = sexp_cpointer_value(parent_boxed_id);
   data->queue = NULL;
 
@@ -111,7 +119,7 @@ sexp csp_spawn (sexp ctx, sexp self, sexp callback) {
   data->thread = thread;
   data->mutex = mutex;
 
-  return boxed_id;
+  return sexp_list2(ctx, parent_boxed_id, boxed_id);
 }
 
 sexp csp_reclaim (sexp ctx, sexp self, sexp boxed_id) {
@@ -120,8 +128,7 @@ sexp csp_reclaim (sexp ctx, sexp self, sexp boxed_id) {
 
   assert(pthread_join(*thread, NULL) == 0);
 
-  sexp_release_object(ctx, data->callback);
-  // ...
+  // TODO: Queue cleanup.
   free(data->mutex);
   free(data->thread);
   free(data);
@@ -134,7 +141,6 @@ sexp csp_reclaim (sexp ctx, sexp self, sexp boxed_id) {
 // TODO: Don't forget to clean up the queue when done.
 
 sexp csp_channel_push (sexp ctx, sexp self, sexp boxed_id, sexp value) {
-  printf("wtf a\n");
   spawn_datum *data = sexp_cpointer_value(boxed_id);
   pthread_mutex_t *mutex = data->mutex;
 
@@ -147,11 +153,6 @@ sexp csp_channel_push (sexp ctx, sexp self, sexp boxed_id, sexp value) {
 
   sexp get_output_string_function = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "get-output-string", 17), SEXP_NULL);
   sexp string = sexp_apply(ctx, get_output_string_function, sexp_list1(ctx, output_string));
-
-  sexp display_function = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "display", 7), SEXP_NULL);
-  printf("pushing \"");
-  sexp_apply(ctx, display_function, sexp_list1(ctx, string));
-  printf("\"\n");
 
   char *cstring = sexp_string_data(string);
 
@@ -167,7 +168,6 @@ sexp csp_channel_push (sexp ctx, sexp self, sexp boxed_id, sexp value) {
 }
 
 sexp csp_channel_pop_non_block (sexp ctx, sexp self, sexp boxed_id) {
-  printf("wtf b\n");
   spawn_datum *data = sexp_cpointer_value(boxed_id);
   pthread_mutex_t *mutex = data->mutex;
 
@@ -175,25 +175,18 @@ sexp csp_channel_pop_non_block (sexp ctx, sexp self, sexp boxed_id) {
 
   spawn_element *queue = data->queue;
   if (queue == NULL) {
-    printf("bailed\n");
     return SEXP_NULL;
   }
 
   char *cstring = queue->data;
-  printf("popped \"%s\"\n", cstring);
-  sexp string = sexp_c_string(ctx, cstring, strlen(cstring));
-  sexp open_input_string_function = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "open-input-string", 17), SEXP_NULL);
-  sexp input_string = sexp_apply(ctx, open_input_string_function, string);
-
-  sexp read_function = sexp_env_ref(ctx, sexp_context_env(ctx), sexp_intern(ctx, "read", 4), SEXP_NULL);
-  sexp value = sexp_apply(ctx, read_function, sexp_list1(ctx, input_string));
+  sexp value = sexp_eval_string(ctx, cstring, -1, NULL);
 
   assert(pthread_mutex_unlock(mutex) == 0);
 
-  /* spawn_element *next = queue->next; */
-  /* #<{(| DL_DELETE(data->queue, queue); |)}># */
-  /* #<{(| free(queue); |)}># */
-  /* data->queue = next; */
+  spawn_element *next = queue->next;
+  DL_DELETE(data->queue, queue);
+  free(queue);
+  data->queue = next;
 
   return value;
 }

@@ -7,22 +7,28 @@
     (define (run-tests)
       (test-begin "csp")
 
-      (define child
-        (csp-spawn (lambda (parent me)
+      (define channels
+        (csp-spawn (csp-lambda (parent me)
           (display "Hello, world!")
           (newline)
           (csp-usleep 500000)
-          (display "1 ")
+          (display "popping first item... ")
           (display (csp-channel-pop-non-block me))
           (newline)
-          (display "2 ")
+          (display "popping second item... ")
           (display (csp-channel-pop-non-block me))
           (newline))))
 
+      (define me (car channels))
+      (define child (cadr channels))
+
+      (display "pushing first item...")
+      (newline)
       (csp-channel-push child "hiii")
+      (display "pushing second item...")
+      (newline)
       (csp-channel-push child "hiii2")
 
-      (csp-sleep 2)
       (display "reclaiming")
       (newline)
       (csp-reclaim child)
