@@ -20,6 +20,8 @@ Chibi Scheme has the advantages that many VMs can be run in the same process
 and each VM is very lightweight. So it's no problem to have multiple VMs all
 running in different threads. The trick is how to share data between the VMs.
 
+The only dependency is Chibi Scheme.
+
 Installation
 ------------
 
@@ -31,9 +33,9 @@ purposes (for running `rake`), and this dependency will go away soon.**
 
 Make sure you have Chibi Scheme installed.
 
-Run `rake install`.
-
 To run the tests, run `rake test`.
+
+To install, run `rake install`.
 
 To remove the library, run `rake remove`.
 
