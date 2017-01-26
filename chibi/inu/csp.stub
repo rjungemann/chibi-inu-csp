@@ -1,7 +1,38 @@
+(c-include-verbatim "utlist.h")
 (c-include-verbatim "csp-wrapper.c")
 
 ;; \procedure{(csp-spawn)}
 ;;
 ;; Lorem ipsum...
 (define-c sexp (csp-spawn "csp_spawn")
+  ((value ctx sexp) (value self sexp) sexp))
+
+;; \procedure{(csp-reclaim)}
+;;
+;; Lorem ipsum...
+(define-c sexp (csp-reclaim "csp_reclaim")
+  ((value ctx sexp) (value self sexp) sexp))
+
+;; \procedure{(csp-channel-push)}
+;;
+;; Lorem ipsum...
+(define-c sexp (csp-channel-push "csp_channel_push")
+  ((value ctx sexp) (value self sexp) sexp sexp))
+
+;; \procedure{(csp-channel-push)}
+;;
+;; Lorem ipsum...
+(define-c sexp (csp-channel-pop-non-block "csp_channel_pop_non_block")
+  ((value ctx sexp) (value self sexp) sexp))
+
+;; \procedure{(csp-usleep)}
+;;
+;; Lorem ipsum...
+(define-c sexp (csp-usleep "csp_usleep")
+  ((value ctx sexp) (value self sexp) sexp))
+
+;; \procedure{(csp-sleep)}
+;;
+;; Lorem ipsum...
+(define-c sexp (csp-sleep "csp_sleep")
   ((value ctx sexp) (value self sexp) sexp))

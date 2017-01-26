@@ -1,3 +1,9 @@
+desc 'Fetch latest utlist.'
+task :fetch do
+  sh 'cd chibi/inu && rm -f utlist.h'
+  sh 'cd chibi/inu && curl -L -O "https://raw.githubusercontent.com/troydhanson/uthash/master/src/utlist.h"'
+end
+
 desc 'Try building the stub file for debugging purposes.'
 task :build_c do
   sh 'chibi-ffi chibi/inu/csp.stub'

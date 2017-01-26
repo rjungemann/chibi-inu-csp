@@ -7,7 +7,26 @@
     (define (run-tests)
       (test-begin "csp")
 
-      (csp-spawn (lambda ()
-        (display "Hello, world!")))
+      (define child
+        (csp-spawn (lambda (parent me)
+          (display "Hello, world!")
+          (newline)
+          (csp-usleep 500000)
+          (display "1 ")
+          (display (csp-channel-pop-non-block me))
+          (newline)
+          (display "2 ")
+          (display (csp-channel-pop-non-block me))
+          (newline))))
+
+      (csp-channel-push child "hiii")
+      (csp-channel-push child "hiii2")
+
+      (csp-sleep 2)
+      (display "reclaiming")
+      (newline)
+      (csp-reclaim child)
+      (display "done")
+      (newline)
 
       (test-end))))
